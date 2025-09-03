@@ -60,7 +60,7 @@ def index():
 @app.route(rotas[1])
 def grafico1():
     with sqlite3.connect(f'{caminhoBanco}{nomeBanco}') as conn:
-        df = pd.read_sql_query(consultas.consulta01, conn)
+        df = pd.read_sql_query(c1, conn)
     figuraGrafico1 = px.bar(
         df, 
         x = 'country',
@@ -70,21 +70,30 @@ def grafico1():
     return figuraGrafico1.to_html()
 
 @app.route(rotas[2])
-def grafico1():
+def grafico2():
     with sqlite3.connect(f'{caminhoBanco}{nomeBanco}') as conn:
-        df = pd.read_sql_query(consultas.consulta01, conn)
-    figuraGrafico1 = px.bar(
-        df, 
-        x = 'country',
-        y = 'total_litres_of_pure_alcohol',
-        title = 'top 10 paises em consumo de alcool'
-    )
-    return figuraGrafico1.to_html()
+        df = pd.read_sql_query(consultas.consulta02, conn)
+#transforma as colunas cerveja destilados e vinhos e  linhas criando no fim duas colunas,
+#uma chamada bebibas com os nomes originais das colunas e outra com a media das procoes com seus valores correspondentes.
+        df_melted = df.melt(var_name='bebidas', value_name= 'media de porcoes')
+        figuraGrafico2 = px.bar(
+            df_melted,
+            x = 'bebidas',
+            y = 'media de porcoes',
+            title = 'media de consumo global por tipo'
+        )
+        return figuraGrafico2.to_html()
+
+
 
 
 #inicia o servidor
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(
+        debug = config.FLASK_DEBUG,
+        host = config.FLASK_HOST,
+        PORT = config.FLASK_PORT
+        )
 
 
 

@@ -8,7 +8,7 @@
 #Author: Lucas Yanaguissawa
 #versao 0.0.1v 09-2025
 #CAMINH DA PASTA
-DB_PATH = "C:/Users/sabado/Desktop/Lucas PYTHON/"
+DB_PATH = "C:/Users/noturno/Desktop/road_to_coding-main/"
 NOMEBANCO = "bancoDeElite.db"
 TABELA_A = 'drinks.csv'
 TABELA_B = 'avengers.csv'

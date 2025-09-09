@@ -243,7 +243,7 @@ def ver_tabela():
         nome_tabela = request.form.get('tabela')
         if nome_tabela not in ['bebidas', 'vingadores']:
             return f"<h3>Tabela {nome_tabela} nao encontrada </h3><br><br> <a href={{rotas [8]}}> Voltar </a>"
-        conn = getDBConnect
+        conn = getDBConnect()
         df = pd.read_sql_query(f"SELECT * from {nome_tabela}", conn)
         conn.close()
 
@@ -270,231 +270,68 @@ def ver_tabela():
         <br> <a href="{{rotas [0]}}'> Voltar </a>                          
         ''', rotas = rotas)
 
-@app.route(rotas[9], methods=['GET', 'POST'])
-def vaa_mortes_consumo():
-    metricas_beb = {
-        "Total (L de Alcool)":"Total_litres_pf_pure_alcohol",
-        "Cerveja (Doses)":"beer_servings",
-        "Destilados (Doses)":"spirit_servings",
-        "Vinho (Doses)":"wine_servings",
-    }
-    
-    
+@app.route(f"{rotas[7]}", methods=["POST", "GET"])
+def apagarMark2():
     if request.method == "POST":
-        met_beb_key = request.form.get("metrica_beb") or "Total (L de Alcool)"
-        met_beb = request.get(met_beb_key, "tal_litres_pf_pure_alcohol")
-
-        #semente opcional para reproduzir a mesma distribuicao de paises nos vingadores
-        try:
-            semente = int(request.form.get("semente"))
-        except:
-            semente = 42
-
-        sementeAleatoria = random.Random(semente) #gera o valor aleatorio baseado na semente escolhida
-
-        #le os dados do banco do SQL
-        with getDBConnect() as conn:
-            dfA = pd.read_sql_query('SELECT * FROM vingadores', conn)
-            dfB = pd.read_sql_query('SELECT country, beer_servings, spririt_servings, wine_servings, total_litres_of_pure_alcoholFROM bebidas', conn)
-
-        #------ Mortes dos vingadores
-        # estrategia: somar as colunas que contenham o death como true (case insensitive)
-        #contaremos nulos como 1, ou seja, death tem True? vale 1 nao em anda vale 0
-        death_cols = [c for c in dfA.columns if 'death' in c.lower()]
-        if death_cols:
-            dfA["Mortes"] = dfA[death_cols].notna().astype(int).sum(axis=1)
-        elif "Deaths" in dfA.columns:
-            #fallback obvio
-            dfA["Mortes"] = pd.to_numeric(dfA["Deaths"], errors="coerse").fillna(0).astype(int)
-        else:
-            dfA["Mortes"] = 0
-
-        if "Name/Alias" in dfA.columns:
-            col_name = "Name/Alias"
-        elif "" in dfA.columns:
-            col_name = ""
-        elif "Alias" in dfA.columns:
-            col_name = "Alias"
-        else:
-            possivel_texto = [c for c in dfA.columns if dfA[c].dtype == "object"]
-            col_name = possivel_texto[0] if possivel_texto else dfA.columns[0]
+        nome_tabela = request.form.get('tabela')
         
-        dfA.rename(columns={col_name:"Personagem"}, inplace = True)
-
-        #--------------- definir um pais para cada vingador
-        paises = dfB["country"].dropna().astype(str).to_list()
-        if not paises:
-            return f"<h3> nao ha paises na tabela de bebidas </h3> <a href={rotas[9]}>Voltar</a> "
-        
-        dfA["Pais"] = [sementeAleatoria(paises) for _ in range(len(dfA))] 
-        dfB_const = dfB["country",met_beb].rename(columns={"country":"Pais", met_beb : "Consumo"})
-        Base = dfB[["Personagem", "Mortes", "Pais"]].merge(dfB_const, on="Pais", how = "left" )
-
-        #filtrar apenas linhas validas
-        base =  base.dropna(subset=["Consumo"])
-        base["Mortes"] = pd.to_numeric(base["Mortes"], errors="Coerse").fillna(0).astype(int)
-        base = base[base["Mortes"] >= 0]
-        #correlacao (se possivel)
-        coor_txt = ""
-        if base["Consumo"].notna().sum() >= 3 and base["Mortes"].notna().sum >= 3:
+        if nome_tabela not in ['bebidas', 'vingadores']:
+            return f"<h3>Tabela {nome_tabela} nao encontrada </h3><br><br> <a href='{rotas[7]}'> Voltar </a>"
+        confirmacao = request.form.get('confirmacao')
+        conn = getDBConnect()
+        if confirmacao == "Sim":
             try:
-                corr = base["Consumo"].corr(base["Mortes"])
-                corr_txt = f" r = {corr:.3f}"
+                cursor = conn.cursor()
+                cursor.execute('SELECT name FROM sqlite_master WHERE type="table" AND name =?',(nome_tabela,))
+                if cursor.fetchone() is None:
+                    return f"<h3> Tabela {nome_tabela} nao encontrada no banco de dados! </h3> <br> <a href={rotas[7]}> Voltar </a>"
+                cursor.execute(f'DROP TABLE IF EXISTS "{nome_tabela}"')
+                    
+                conn.commit()
+                conn.close()
+                return f"Tabela {nome_tabela} apagada"
+            
+            except Exception as erro:
+                conn.close()
+                return f"NAO FOI POSSIVEL APAGAR A TABELA: erro {erro}"
 
-            except Exception:
-                pass
-
-        #==================== grafico scatter 2d: consumo x mortes (cor = pais) ==========================
-        fig2d = px.scatter(
-            base,
-            x= "Consumo", 
-            y= "Mortes",
-            color=" Pais",
-            hover_name= "Personagem",
-            hover_data = {
-                "Pais": True,
-                "Consumo": True,
-                "Mortes": True
-                },
-            title = f"vingadores - mortes vs consumo de alcool do pais ({met_beb_key}){corr_txt}"
-        )
-
-        fig2d.update_layout(
-            xaxis_title = f"{met_beb_key}",
-            yaxis_title = "Mortes(contagem)",
-            margin = dict(l=40, r=20, t=70, b=40)
-        )
-
-        return (
-        "<h3> ----Grafico 2d---- </h3>"
-        + fig2d.to_html(full_html = False)
-        + "<hr>"
-        + "<h3> --- grafico 3d---- </h3>"
-        + "<p> Em breve </p>"
-        + "<hr>"
-        + "<h3> ----- Preview dos dados ------ </h3>"
-        + "<p> Em breve </p>"
-        + "<hr>"
-        + f"<a href = {rotas[0]}> Menu Inicial</a>"
-        + "<br>"
-        + f"<a href = {rotas[9]}> Voltar</a>"
-        )
-
-    return render_template_string('''
-    <style>
-/* Soviet Style - style.css */
-body {
-    background-color: #2b2b2b; /* industrial grey */
-    font-family: "Courier New", Courier, monospace;
-    color: #f1f1f1;
-    padding: 20px;
-}
-
-h2 {
-    color: #ff0000;
-    text-align: center;
-    border-bottom: 2px solid #cc0000;
-    padding-bottom: 10px;
-    font-size: 26px;
-    text-transform: uppercase;
-    letter-spacing: 2px;
-}
-
-form {
-    background-color: #3b3b3b;
-    border: 2px solid #990000;
-    padding: 20px;
-    max-width: 500px;
-    margin: auto;
-    border-radius: 10px;
-    box-shadow: 0 0 10px #cc0000;
-}
-
-label {
-    display: block;
-    margin-top: 15px;
-    color: #ffcc00;
-    font-weight: bold;
-}
-
-select, input[type="number"] {
-    width: 100%;
-    padding: 10px;
-    background-color: #1e1e1e;
-    color: #fff;
-    border: 1px solid #990000;
-    border-radius: 5px;
-    margin-top: 5px;
-}
-
-input[type="submit"] {
-    margin-top: 20px;
-    width: 100%;
-    background-color: #cc0000;
-    color: #fff;
-    border: none;
-    padding: 12px;
-    font-size: 16px;
-    cursor: pointer;
-    text-transform: uppercase;
-    font-weight: bold;
-    border-radius: 5px;
-}
-
-input[type="submit"]:hover {
-    background-color: #ff1a1a;
-    box-shadow: 0 0 8px #ff0000;
-}
-
-p {
-    margin-top: 30px;
-    font-style: italic;
-    font-size: 14px;
-    color: #ccc;
-    text-align: center;
-}
-
-a {
-    display: block;
-    text-align: center;
-    color: #ffcc00;
-    font-weight: bold;
-    text-decoration: none;
-    margin-top: 20px;
-}
-
-a:hover {
-    text-decoration: underline;
-    color: #ffff66;
-}
-
-
-    </style>                         
+    return render_template_string(f'''
+        <html>
+            <head>
+                <title><marquee> XOMPS!! - apagar tabela - </marquee></title>
+            <head>
+        <body>                                  
+        <marquee> Selecione a tabela a ser apagada </marquee>
         
-    <h2> VAAA - Pais x consumo x mortes </h2>
-    <form method="POST">
-        <label for="metrica_beb"> <b> metrica de consumo <b> </label>
-        <select name ="metrica_beb" id="metrica_beb">                              
-                    {% for doses in metricas_beb.keys() %}
-                           <option value="{{doses}}">{{doses}}</option>
-                    {% endfor %}  
-        </select>
-        <br><br>
-        <label for="Semente"> <b>Semente:</b> (<i>opcional, p/reprodutibilidade<i>) </label>
-        <input type="number" name="semente" id="semente" value="42">
-        
-        <br><br>
-        <input type="submit" value=" ---- Gerar Pickles -----"> </input>                          
-    </form>
-    <p>
-        esta visao sortei um pais para cada vingador, soma as mortes dos personagens e  anexa o consumo de alcool do pais, ao fim, plota um scatter 2d e um grafico 3d                          
-    </p>
-                                  <br>
-
-    <a href={{rotas[0]}}> Voltas </a>
-''', metricas_beb = metricas_beb, rotas=rotas)
-
-
+        <form method="POST">
+            <label>Escolha a tabela abaixo:</label>
+            <select name="tabela">                           
+                <option value="" disabled selected>Select an option</option>
+                <option value="bebidas">Bebidas</option>
+                <option value="vingadores">Vingadores</option>
+            </select>
+            <input type ="hidden" name=" confirmacao" value ="" id="confirmacao">                
+            <hr>
+            <input type="submit" value="Apagar Tabela" onclick= "return confirmarExclusao();">
+            <br> <a href="{{ rotas[0] }}"> Voltar </a>
+        </form>
+        <script type="text/javascript">
+            function confirmarExclusao{{
+                var ok = confirm ('tem certeza de que deseja apagar a tabela selecioanda?');
+                if(ok) {{
+                        document.getElementByID
+                        ('confirmacao').value = 'Sim';
+                        return true;                   
+                }}
+                else {{
+                    document.getElementByID
+                    ('confimacao').value = 'Não';
+                    return false;             
+                }}
+            }}
+        </body>
+        </html>                          
+        ''', rotas=rotas)
 
 #inicia o servidor
 if __name__ == "__main__":

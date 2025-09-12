@@ -56,7 +56,7 @@ def index():
 
                                     <br><a href="/Consultar"> Consultar dados armazenados</a> 
                                     <br><a href="/graficos"> Visuzliar graficos</a>
-                                    <br><a href="/editar inadimplencia"> editar dados de inadimplencia</a>
+                                    <br><a href="/editar_inadimplencia"> editar dados de inadimplencia</a>
                                     <br><a href="/WIP">WIP: editar dados selic</a>
                                     <br><a href="/correlacao">analisar correlcacao</a>
     ''')
@@ -185,13 +185,168 @@ def graficos():
         </html>
     ''', grafico1 = graph_html1, grafico2 = graph_html2)
 
+@app.route('/editar_inadimplencia', methods=['POST', 'GET'])
+def editar_inadimplencia():
+    if request.method == 'POST':
+        mes = request.form.get('campo_mes')
+        novo_valor = request.form.get('campo_valor')
+        try:
+            novo_valor = float(novo_valor)
+        except:
+            return jsonify({'mensagem': 'valor invalido'})
+        
+        with sqlite3.connect(DB_PATH) as conn:
+            cursor = conn.cursor()
+            cursor.execute("UPDATE inadimplencia SET inadimplencia = ? WHERE mes = ?", (novo_valor, mes))
+            conn.commit()
+        
+        return jsonify({"mensagem":f"valor atualizado com sucesso para o mes {mes}"})
+
+
+
+    return render_template_string('''
+            <h1>Editar Inadimplencia</h1>
+            <form method="post" action="/editar_inadimplencia">
+                                  
+                <label for = "campo_mes">Mes(AAAA-MM)</label>
+                <input type="text" name="campo_mes"><br>
+                                  
+
+                <label for = "campo_valor">Novo valor de inadimplencia</label>
+                <input type="text" name="campo_valor"><br>
+                                  
+                <input type="submit" value ="Atualizar">          
+               
+            </form>
+            ''')
+
+@app.route('/correlacao', methods=['POST', 'GET'])
+def correlacao():
+    with sqlite3.connect(DB_PATH) as conn:
+        inad_df = pd.read_sql_query("SELECT * FROM inadimplencia", conn)
+        selic_df = pd.read_sql_query("SELECT * FROM selic", conn)
+    
+    merged = pd.merge(inad_df, selic_df, on= 'mes')
+    #cacula a correlacao entre duas colunas, ou seja, coeficiente de correlcao de person
+    # 1 e positiva perfeita
+    # 0 e sem correlaçao
+    # -1 eh correlacao negativa perfeita
+
+    correl = merged['inadimplencia'].corr(merged['selic_diaria'])
+
+    #regressao linear para  visualizacao
+    #o polifit encontra os coeficirntes 'm' da inclinacao e b (intercepto) da regra de regressao linear
+    #essa linha mostra a tendencia geral
+
+    x = merged['selic_diaria']
+    y = merged['inadimplencia']
+
+    m, b = np.polyfit(x, y, 1)
+    
+    fig = go.Figure()
+    fig.add_trace(go.Scatter(
+        x = x,
+        y= y,
+        mode = 'markers',
+        name = 'Inadimplencia x selic',
+        marker = dict(
+            color = 'rgba(0, 123, 255, 0.8)'
+            size = 12, 
+            line = dict(width = 2, color = 'white')
+            symbol = 'circle'
+        ),
+        hovertemplate = 'SELIC: %{x:.2f}%<br>Inadimplencia: %{y:.2f}%<extra></extra>'
+    ))
+    fig.add_trace(go.Scatter(
+        x = x,
+        y = m * x + b
+        #façamos a inclinacao multiplicada pelo valor do ponto de dado mais o 
+        #intercepto gerando nossa linha do grafico
+        modo = 'lines', 
+        nome = 'Linha de tendencia',
+        line = dict(
+                color = 'rgba(220, 53, 69, 1)',
+                width = 4,
+                dash = 'dot',
+
+
+        )
+    ))
+
+    fig.upate_layout(
+        title = {
+            'text':f'<br><b>Correlacao entre selic e inadimplencia</b><br><span style style="font-size: 16px">Coeficiente de correlacao: {correl:.2f}</span>',
+            'y': 0.95,
+            'x':'0.5',
+            'yanchor':'center',
+            'xanchor':'top',
+        },
+
+        xaxis_title  = dict(
+            text= 'selic mmedia mensal(%)',
+            font=dict(size =12, color= 'gray')
+        ),
+        yaxis_title = dict(
+         text = 'inadimplencia (%)',
+         font = dict(size=12, color= 'gray')
+        ),
+        xaxis = dict(
+            tickfont = dict( size= '14', color='black'),
+            gridcolor = 'lightgray'
+        ),
+        yaxis = dict(
+            tickfont = dict( size= '14', color='black'),
+            gridcolor = 'lightgray'
+
+        ),
+        plot_bgcolor = '#f8f9fa',
+        paper_bgcolor = 'white',
+        fonte = dict(size = 14, color = 'black'),
+        legend = dict(
+            orientation = 'h',
+            yanchor = 'bottom',
+            y = 1.05,
+            xanchor = 'center',
+            x = 0.5,
+            bgcolor = 'rgba(0,0,0,0)'
+            borderwidth = 0
+            
+        )
+        margin = dict(l=60, r=60, t=120, b=60)
+
+    )# nao toque em mim
+
+    grph_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    return render_template_string('''
+            <html>
+                <head>
+                        <title>correlacao selic X inadimplencia</title>
+                        <style>
+                            body{background-color: #ffffff; COLOR #333;}
+                            h1{margin-top:40px;}
+                            .container{width:90%; margin: auto; text-align: center;}
+                        </style>
+                </head>
+                <body>
+                    <div class = 'container'>
+                        <h1> correlacao entre selic e inadimplencia>
+                        <div>{{grafico|safe}}</div>
+                    </div>
+                </body>
+                              
+                                  
+            </html>
+       ''')
+
+
 
 
 @app.route('/WIP')
-def WIP():
-    return render_template_string('''
-                <h1> WORK IN PROGRESS </h1>
-            ''')
+with sqlite3.connect(DB_PATH) as conn:
+        inad_df = pd.read_sql_query("SELECT * FROM inadimplencia", conn)
+        selic_df = pd.read_sql_query("SELECT * FROM selic", conn)
+    
+    merged = pd.merge(inad_df, selic_df, on= 'mes')
 
 
 if __name__ == '__main__':

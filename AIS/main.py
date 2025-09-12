@@ -250,20 +250,20 @@ def correlacao():
         mode = 'markers',
         name = 'Inadimplencia x selic',
         marker = dict(
-            color = 'rgba(0, 123, 255, 0.8)'
+            color = 'rgba(0, 123, 255, 0.8)',
             size = 12, 
-            line = dict(width = 2, color = 'white')
+            line = dict(width = 2, color = 'white'),
             symbol = 'circle'
         ),
         hovertemplate = 'SELIC: %{x:.2f}%<br>Inadimplencia: %{y:.2f}%<extra></extra>'
     ))
     fig.add_trace(go.Scatter(
         x = x,
-        y = m * x + b
+        y = m * x + b,
         #façamos a inclinacao multiplicada pelo valor do ponto de dado mais o 
         #intercepto gerando nossa linha do grafico
-        modo = 'lines', 
-        nome = 'Linha de tendencia',
+        mode = 'lines', 
+        name = 'Linha de tendencia',
         line = dict(
                 color = 'rgba(220, 53, 69, 1)',
                 width = 4,
@@ -273,13 +273,13 @@ def correlacao():
         )
     ))
 
-    fig.upate_layout(
+    fig.update_layout(
         title = {
             'text':f'<br><b>Correlacao entre selic e inadimplencia</b><br><span style style="font-size: 16px">Coeficiente de correlacao: {correl:.2f}</span>',
             'y': 0.95,
-            'x':'0.5',
-            'yanchor':'center',
-            'xanchor':'top',
+            'x':0.5,
+            'yanchor':'top',
+            'xanchor':'center',
         },
 
         xaxis_title  = dict(
@@ -291,32 +291,31 @@ def correlacao():
          font = dict(size=12, color= 'gray')
         ),
         xaxis = dict(
-            tickfont = dict( size= '14', color='black'),
+            tickfont = dict( size= 14, color='black'),
             gridcolor = 'lightgray'
         ),
         yaxis = dict(
-            tickfont = dict( size= '14', color='black'),
+            tickfont = dict( size= 14, color='black'),
             gridcolor = 'lightgray'
 
         ),
         plot_bgcolor = '#f8f9fa',
         paper_bgcolor = 'white',
-        fonte = dict(size = 14, color = 'black'),
+        font = dict(size = 14, color = 'black'),
         legend = dict(
             orientation = 'h',
             yanchor = 'bottom',
             y = 1.05,
             xanchor = 'center',
             x = 0.5,
-            bgcolor = 'rgba(0,0,0,0)'
+            bgcolor = 'rgba(0,0,0,0)',
             borderwidth = 0
-            
-        )
+        ),
         margin = dict(l=60, r=60, t=120, b=60)
 
-    )# nao toque em mim
+    )
 
-    grph_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
+    graph_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
     return render_template_string('''
             <html>
                 <head>
@@ -329,24 +328,24 @@ def correlacao():
                 </head>
                 <body>
                     <div class = 'container'>
-                        <h1> correlacao entre selic e inadimplencia>
+                        <h1> correlacao entre selic e inadimplencia </h1>
                         <div>{{grafico|safe}}</div>
                     </div>
                 </body>
                               
                                   
             </html>
-       ''')
+       ''', grafico =  graph_html)
 
 
 
 
-@app.route('/WIP')
-with sqlite3.connect(DB_PATH) as conn:
-        inad_df = pd.read_sql_query("SELECT * FROM inadimplencia", conn)
-        selic_df = pd.read_sql_query("SELECT * FROM selic", conn)
+#@app.route('/WIP')
+#    with sqlite3.connect(DB_PATH) as conn:
+ #       inad_df = pd.read_sql_query("SELECT * FROM inadimplencia", conn)
+ #       selic_df = pd.read_sql_query("SELECT * FROM selic", conn)
     
-    merged = pd.merge(inad_df, selic_df, on= 'mes')
+  #  merged = pd.merge(inad_df, selic_df, on= 'mes')
 
 
 if __name__ == '__main__':

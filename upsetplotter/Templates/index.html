@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lucas Upsetploter Tool v1.0</title>
+</head>
+<body>
+    <header>
+        <h1>Lucas Upsetploter Tool</h1>
+        <h2>Version 1.0</h2>
+        
+        <section>
+            <h3>Tool Description:</h3>
+            <ul>
+                <li>This tool will create an upsetplot based on data input from form below.</li>
+                <li>It will also create an Excel file matrix with YES/NO for presence in each group overlap.</li>
+                <li>Fill form below to add data files for analysis (max 10 files per run).</li>
+            </ul>
+        </section>
+    </header>
+
+    <main>
+        <!-- SIMPLE HTML FORM - No JavaScript -->
+        <form action="/analyze" method="post" enctype="multipart/form-data">
+            <h3>Upload Your Excel Files:</h3>
+            
+            <!-- File 1 -->
+            <div>
+                <label>1. Excel File:</label>
+                <input type="file" name="file1" accept=".xlsx, .xls">
+                <label>Column Number:</label>
+                <input type="number" name="col1" min="1" max="10" placeholder="1">
+            </div>
+            <br>
+            
+            <!-- File 2 -->
+            <div>
+                <label>2. Excel File:</label>
+                <input type="file" name="file2" accept=".xlsx, .xls">
+                <label>Column Number:</label>
+                <input type="number" name="col2" min="1" max="10" placeholder="2">
+            </div>
+            <br>
+
+            <!-- Add more files as needed (up to 10) -->
+            <!-- File 3 -->
+            <div>
+                <label>3. Excel File:</label>
+                <input type="file" name="file3" accept=".xlsx, .xls">
+                <label>Column Number:</label>
+                <input type="number" name="col3" min="1" max="10" placeholder="3">
+            </div>
+            <br>
+
+            <!-- Submit Button -->
+            <div>
+                <button type="submit">🚀 Generate Upset Plot</button>
+                <button type="reset">Clear All</button>
+            </div>
+        </form>
+
+        <section>
+            <h3>How It Works:</h3>
+            <ol>
+                <li>Select Excel files and specify which column has gene data (1 = first column)</li>
+                <li>Click "Generate Upset Plot"</li>
+                <li>Wait for processing...</li>
+                <li>Download your results!</li>
+            </ol>
+        </section>
+    </main>
+</body>
+</html>
